@@ -5,12 +5,12 @@
 clc; close all; clear all;
 
 % Define constants
-v = [randi(10);...
-    -randi(10);...
-    randi(10)];  %m/s for all time
+v = [randi(30);...
+    %-randi(30);...
+    randi(30)];  %m/s for all time
 dt = .01;       %s
 N = 1000;       % Number of time steps
-M = 1;          % Number of false measuremnts per time step
+M = 0;          % Number of false measuremnts per time step
 t = (1:N)*dt;   % Time Array
 Qk = 0.5;       % Process noise covariance
 R = 0.1;        % Measurement noise covariance
@@ -33,6 +33,7 @@ for targ=1:size(v,1)
         x(k,1,targ)=x(k-1,1,targ)+dt*x(k,2,targ);
     end
 end
+x(:,1,1)=x(:,1,1)+1;
 
 % Create noisy measurements
 [~,idx]=max(abs(v));
@@ -43,21 +44,20 @@ for k=2:N
     end
     for ii=1:M
         % Add random noise that are outliers
-        y(k,end)=max(max(max(x(:,1,idx))))*(-1+2.*rand(1,1));
+        %y(k,end)=max(max(max(abs(x(:,1,idx)))))*(-1+2.*rand(1,1));
     end
 end
-   
+y(:,1)=y(:,1)+1;   
 % Plot data
 figure(1);clf;
 plot(t,y(:,1),'b.')
 hold on;
 plot(t,y(:,2),'k.')
-hold on;
-plot(t,y(:,3),'g.')
-hold on;
-for ii = 1:M
-    plot(t,y(:,3+ii),'r.')
-end
+%hold on;
+%plot(t,y(:,3),'g.')
+%hold on;
+%plot(t,y(:,end),'r.')
+hold off;
 xlabel('Time (s)');
 ylabel('Position (m)');
 
