@@ -28,17 +28,18 @@ clc; close all; clear all;
 data_file=load('1d_multTarg_ransac_data.mat');
 t=data_file.t;      % Time array
 dt=data_file.dt;    % Time step
+trueModel = data_file.x;    % True state of target
+y_k=data_file.y;    % Measurements: Cols 1-2
+%y_k=data_file.y;    % Measurements: Columns 1-3 are true measurements. all other cols are from random noisy data
 
 %% 0.2 Build constant matrices
 % Define Constants
 N = 5; % measurement window length
 n = 2;  % # of states (2 because of position and velocity)
-m = 1;  % # of states I'm measuring (1 becauseI'm just obtaining position data)
+m = 1;  % # of states I'm measuring (1 because I'm just obtaining position data)
 
 % Dynamic model definition for 1D model
 x_k=zeros(2,N);     % Initial States
-trueModel = data_file.x;    % True state of target
-y_k=data_file.y;    % Measurements: Columns 1-3 are true measurements. all other cols are from random noisy data
 a = [0 1; 0 0];     % Continuous time system matrix
 A = [1 dt; 0 1];    % Discretized system matrix
 C = [1 0];          % Measurement matrix
@@ -100,7 +101,7 @@ end
 %       -s based on current time step %
 %       measurements into a model     %
 %       object vector                 %
-tauR=3;
+tauR=.01;
 %Build model array (M) based on each current data points
 M=struct('model',cell((N-1)*size(meas,2)*size(meas(end,:),2),1),...
     'assocmeas',cell((N-1)*size(meas,2)*size(meas(end,:),2),1));
@@ -113,12 +114,20 @@ for currdp=1:size(meas(end,:),2)
         for jj=1:size(meas,2)
             currInliers=0;
             tStep1=meas(ii,jj).t_step;
-            y1=meas(ii,jj).data;
-            x=noise_prop(:,[tStep1,meas(end,currdp).t_step])*[y1;y_currmeas];
+            y_1=meas(ii,jj).data;
+            x=noise_prop(:,[tStep1,meas(end,currdp).t_step])*[y_1;y_currmeas];
             M(modelnum).model=[M(modelnum).model,x];
-            for qq=1:(N-1) %time steps
+            for qq=1:N %time steps
                 for rr=1:size(meas,2) %number of measurements per time step
-                    diff=abs((x(1)+x(2)*qq)-meas(qq,rr).data);
+                    %%% SOMETHING IS WRONG WITH THIS DIFF CALCULATION %%%
+                    m=x(2);
+                    b=x(1);
+                    y1=meas(qq,rr).data;        %Data point
+                    x1=meas(qq,rr).t_step*dt;   %Data point
+                    x2=(y1-x1/m-b)/(m-1/m);     %Model intersection point
+                    y2=m*x2+b;                  %Model intersection point
+                    diff=sqrt((y2-y1)^2+(x2-x1)^2);
+                    %diff=abs((x(1)+x(2)*dt*(qq-1))-meas(qq,rr).data);
                     if(diff<=tauR)
                         M(modelnum).assocmeas=[M(modelnum).assocmeas,meas(qq,rr)];
                         currInliers=currInliers+1;
@@ -129,6 +138,7 @@ for currdp=1:size(meas(end,:),2)
         end    
     end
 end
+modelnum=modelnum-1;
 
 %% 3.0 Get rid of models that have the same initial and final inliers
 eq_models=[];
@@ -169,7 +179,7 @@ best_model.model=[];
 best_model.assocmeas=[];
 numbestmodels=0;
 for ii=1:size(M,1)
-    if (size(M(ii).assocmeas,2)>(N/6))
+    if (size(M(ii).assocmeas,2)>floor(N/2))
         numbestmodels=numbestmodels+1;
         best_model(numbestmodels).model=M(ii).model;
         best_model(numbestmodels).assocmeas=M(ii).assocmeas;
@@ -197,7 +207,7 @@ plot(t(1,1:N),y_k(1:N,2),'g*'); hold on;
 %% 4. Apply KALMAN SMOOTHING to these %
 %       models                        %
 P=inv(O'*inv(E)*O); % Error of covariance from paper
-x_hat=zeros(2,N,size([best_model.model],2));
+x_hat=zeros(n,N,size([best_model.model],2));
 for ii=1:size([best_model.model],2) %Loop for each model
     curr_best_model=best_model(ii).model;
     x_hat(:,:,ii)=[curr_best_model(1)+curr_best_model(2)*t(1,1:N);curr_best_model(2)*ones(1,N)];
@@ -212,10 +222,7 @@ for ii=1:size([best_model.model],2) %Loop for each model
         for j=1:size(mod_inl,2) %Each measurement inside model @ curr t_step
             L=P_new*C'*inv(R+C*P_new*C');
             P_new=(eye(n)-L*C)*P_new;
-            %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-            %x_hat(:,k,ii)=x_hat(:,k,ii)+L*(y_k(k,j)-C*x_hat(:,k,ii));
-            x_hat(:,k,ii)=x_hat(:,k,ii)+L*(...
-                best_model(ii).assocmeas(mod_inl(j)).data-C*x_hat(:,k,ii));
+            x_hat(:,k,ii)=x_hat(:,k,ii)+L*(y_k(k,j)-C*x_hat(:,k,ii));
         end
     end
 end
@@ -232,7 +239,7 @@ plot(t(1,1:N),y_k(1:N,2),'g*'); hold on;
 %plot(t(1,1:N),y_k(1:N,4),'r.'); hold off;
 %legend('Model','True data','Noise');
 %pause(5)
-savefig('1d_1targ_ransac_spread_smoothed');
+%savefig('1d_1targ_ransac_spread_smoothed');
 %close(gcf);
 
 %% 5. Delete associated measurements  %
