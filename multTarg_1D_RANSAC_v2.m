@@ -33,7 +33,7 @@ y_k=data_file.y;    % Measurements: Columns 1-3 are true measurements. all other
 Num_Targets = size(y_k,2); % Number of targets and noise
 %% 0.2 Build constant matrices
 % Define Constants
-N = 20; % measurement window length
+N = 80; % measurement window length
 n = 2;  % # of states (2 because of position and velocity)
 m = 1;  % # of states I'm measuring (1 because I'm just obtaining position data)
 
@@ -113,8 +113,8 @@ end
 %       -s based on current time step %
 %       measurements into a model     %
 %       object vector                 %
-%tauR=.02;
-tauR=300;
+tauR=.125;
+%tauR=2.8;
 %Build model array (M) based on each current data points
 %M=(window_size-1)*Number_targets*
 M=struct('model',cell((N-1)*Num_Targets*size(meas(end,:),2),1),...
@@ -127,8 +127,8 @@ for curr_data_pt=1:size(meas(end,:),2)
         for jj=1:size(meas,2)
             currInliers=0;            
             d=[ii*jj;Psi-(curr_data_pt-1)];
-            B=[zeros(1,d(1)-1),eye(1),zeros(1,Psi-d(1));...
-                zeros(1,d(2)-1),eye(1),zeros(1,Psi-d(2))];
+            B=[zeros(1,d(1)-1),eye(m),zeros(1,Psi-d(1));...
+                zeros(1,d(2)-1),eye(m),zeros(1,Psi-d(2))];
             Obar=B*Phi*O;
             Ebar=B*Phi*E*Phi'*B';
             noise_prop_bar=inv(Obar'*inv(Ebar)*Obar)*Obar'*inv(Ebar);
@@ -153,7 +153,8 @@ for curr_data_pt=1:size(meas(end,:),2)
 %                         currInliers=currInliers+1;
 %                     end
                     
-                    Bk=eye(Psi);
+                    d=qq*rr;
+                    Bk=[zeros(1,d-1),eye(m),zeros(1,Psi-d)];
                     dist_paper=norm((Bk*y_k_1D-Bk*Phi*O*xhat),inf);
                     if(dist_paper<=tauR)
                         M(modelnum).assocmeas=[M(modelnum).assocmeas,meas(qq,rr)];
@@ -222,7 +223,8 @@ best_model.model=[];
 best_model.assocmeas=[];
 numbestmodels=0;
 for ii=1:size(M,1)
-    if (size(M(ii).assocmeas,2)>floor(N/2))
+    if (size(M(ii).assocmeas,2)>floor(N/5))
+    %if (size(M(ii).assocmeas,2)>floor(N/2))
         numbestmodels=numbestmodels+1;
         best_model(numbestmodels).model=M(ii).model;
         best_model(numbestmodels).assocmeas=M(ii).assocmeas;
@@ -234,27 +236,34 @@ for ii=1:size([best_model.model],2)
     curr_best_model=best_model(ii).model;
     model(ii,:)=curr_best_model(1)+curr_best_model(2)*t;
 end
-clf;
-figure(1);
+figure(1); clf;
+h=zeros(6,1);
 for ii=1:size(model,1)
-    plot(t(1,1:N),model(ii,1:N),'k--'); hold on;
+    h(1)=plot(t(1,1:N),model(ii,1:N),'k--','Linewidth',2); hold on;
+    for jj=1:size([best_model(ii).assocmeas],2)
+        curr_am_data=best_model(ii).assocmeas(jj).data;
+        curr_am_tstep=best_model(ii).assocmeas(jj).t_step;
+        h(2)=plot((curr_am_tstep-1)*dt,curr_am_data,'ko','Linewidth',1);
+    end
 end
+
 fprintf('%.1f models plotted on graph.\n',size(model,1))
-plot(t(1,1:N),y_k(1:N,1),'b^'); hold on;
-plot(t(1,1:N),y_k(1:N,2),'r^');
-plot(t(1,1:N),y_k(1:N,3),'g^');
-plot(t(1,1:N),y_k(1:N,end),'m*','Linewidth',.75); 
+h(3)=plot(t(1,1:N),y_k(1:N,1),'b^','Linewidth',.75);
+h(4)=plot(t(1,1:N),y_k(1:N,2),'rs','Linewidth',.75);
+h(5)=plot(t(1,1:N),y_k(1:N,3),'gd','Linewidth',.75);
+h(6)=plot(t(1,1:N),y_k(1:N,end),'m*','Linewidth',.75); 
 hold off;
 title("Rough Models on noisy data")
 xlabel('Time (s)');
 ylabel('Position (m)');
+legend(h,'Models','Inliers','1st Target','2nd Target','3rd Target','Noise')
 %pause(5)
-%savefig('1d_1targ_ransac_comparison');
+savefig('1d_multitarg_ransac_rough_v2');
 %close(gcf);
 %% 4. Apply KALMAN SMOOTHING to these %
 %       models                        %
-%P=inv(O'*inv(E)*O); % Error of covariance from paper
-P=inv(Obar'*inv(Ebar)*Obar); % Error of covariance from paper
+P=inv(O'*inv(E)*O); % Error of covariance from paper
+%P=inv(Obar'*inv(Ebar)*Obar); % Error of covariance from paper
 
 x_hat=zeros(n,N,size([best_model.model],2));
 for ii=1:size([best_model.model],2) %Loop for each model
@@ -278,22 +287,23 @@ for ii=1:size([best_model.model],2) %Loop for each model
 end
 
 %% Plot smoothed model on top of noisy data
-%clf;
-figure(2);
+figure(2); clf;
+h=zeros(5,1);
+h(1)=plot(t(1,1:N),x_hat(1,1:N,1),'k-','Linewidth',2); hold on;
 for ii=1:size(x_hat,3)
-    plot(t(1,1:N),x_hat(1,1:N,ii),'k-'); hold on;
+    plot(t(1,1:N),x_hat(1,1:N,ii),'k-','Linewidth',2);
 end
-plot(t(1,1:N),y_k(1:N,1),'b^'); hold on;
-plot(t(1,1:N),y_k(1:N,2),'r^');
-plot(t(1,1:N),y_k(1:N,3),'g^'); 
-plot(t(1,1:N),y_k(1:N,end),'m*','Linewidth',.75);
+h(2)=plot(t(1,1:N),y_k(1:N,1),'b^','Linewidth',1); hold on;
+h(3)=plot(t(1,1:N),y_k(1:N,2),'r^','Linewidth',1);
+h(4)=plot(t(1,1:N),y_k(1:N,3),'g^','Linewidth',1); 
+h(5)=plot(t(1,1:N),y_k(1:N,end),'m*','Linewidth',.75);
 title("Smoothed Models on noisy data")
 xlabel('Time (s)');
 ylabel('Position (m)');
 hold off;
-%legend('Model','True data','Noise');
+legend(h,'Model','1st Target','2nd Target','3rd Target','Noise');
 %pause(5)
-%savefig('1d_1targ_ransac_spread_smoothed');
+savefig('1d_multitarg_ransac_smoothed_v2');
 %close(gcf);
 
 %% 5. Delete associated measurements  %
