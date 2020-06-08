@@ -9,18 +9,27 @@ public:
       nodeLevel=0;
       pointObj=NULL;
       overflowTreatmentWasCalled=false;
+      isLeafNode = false;
     };
     Node(Point newPoint) {
       nodeLevel=0;
       pointObj=newPoint;
       overflowTreatmentWasCalled=false;
+      isLeafNode = true;
     };
     ~Node(){};
-    void AddChildNode(Node userNode) {childrenNodes.push_back(new Node(userNode));};
+    void AddChildNode(Node* userNode) {childrenNodes.push_back(userNode);};
     void RemoveChildNode(Node userChildNode2Remove) {
       childrenNodes.erase(std::remove(childrenNodes.begin(), childrenNodes.end(), userChildNode2Remove), childrenNodes.end());
     };
-    void AddNodePoint(vector<float> userData, int userTStep) {pointObj = new Point(userData, userTStep);};
+    void RemoveAllChildNodes() {
+      childrenNodes.clear();
+      // TODO: Does this actually get rid of all pointers...or do I need to use the delete function
+    }
+    void AddNodePoint(vector<float> userData, int userTStep) {
+      pointObj = new Point(userData, userTStep);
+      isLeafNode = true;
+    };
     void UpdateNodeBoundingBox() {
       vector<float> mins, maxs;
       //For each childNode
@@ -59,11 +68,30 @@ public:
     void IncreaseNodeLevel() {nodeLevel++;};
     void DecreaseNodeLevel() {nodeLevel--;};
     vector<Node*> GetNodeChildren() {return childrenNodes;};
+    int GetNumberOfChildren() {return childrenNodes.size();};
     vector<vector<float>> GetNodeBounds() {return nodeBoundingBox;};
     Point* GetNodePoint() {return pointObj;};
     bool WasOverflowTreatmentCalled() {return overflowTreatmentWasCalled;};
-
-
+    bool IsNodeALeafNode() {
+      if (pointObj != NULL) {//the node is a leaf node
+        return true;
+      }
+      else {
+        return false;
+      }
+    };
+    vector<float> GetCenterOfBoundingBox() {
+      vector<float> boxOrigin;
+      if (!nodeBoundingBox.empty()) {
+        for (unsigned int ii=0; ii<nodeBoundingBox.size(); ii++) {
+          boxOrigin.push_back((nodeBoundingBox.at(ii).at(0) + nodeBoundingBox.at(ii).at(1)) / 2);
+        }
+        return boxOrigin;
+      }
+      else {
+        return nodeBoundingBox;
+      }
+    };
     /*float nodePerimeter() {
       float perim = 0;
       for (unsigned int i = 0; i<nodeSize.size(); i++) {
@@ -78,58 +106,52 @@ public:
       }
       return vol;
     };*/
-
     //Variables
     vector<Node*> childrenNodes;
     int nodeLevel;
-    vector<vector<float>> nodeBoundingBox;
+    vector<vector<float>> nodeBoundingBox; //1stVect: Dimension; 2ndVect: {min, max}
     Point* pointObj;
     bool overflowTreatmentWasCalled;
+    bool isLeafNode;
   };
 
   RRTree(); //Assumes M=2 and m=1
   RRTree(int userM, int userm);
   ~RRTree(); //Calls clear()
-  Node* getRootNode() const;
-
-  //True if data was able to be inserted -> Calls Insert()
+  Node* GetRootNode() const;
+  //True if data was able to be inserted -> Calls Insert
   bool InsertData(Point newPoint);
-
-  //True if data was able to be inserted -> Calls ChooseSubtree, OverflowTreatment
+  //True if data was able to be inserted.
+  //Keeps nodes balanced and within M and m parameters -> Calls ChooseSubtree, OverflowTreatment
   bool Insert(Node *&tree, Point newPoint);
-
+  //Recursive function moving through tree until it reaches a leaf node -> Calls itself
+  Node* ChooseSubtree(Node *&tree, Point newPoint);
   //True if Split() was called.
-  //Meant for dealing with a full Node -> Calls ReInsert()/Split() depending on nodeLevel
-  bool OverflowTreatment(Node *&tree, int currNodeLevel);
-
-  //Used to help avoid Split() of nodes as often as possible.
+  //Meant for dealing with a filled Node -> Calls ReInsert or Split depending on nodeLevel
+  bool OverflowTreatment(Node *&tree);
+  //Used to help avoid Split of nodes as often as possible....I'm a bit confused -> Calls Insert
   void ReInsert(Node *&tree);
-
-  //
-  void ChooseSubtree(Node *&tree, Point newPoint);
-
-  //
-  void CheckComp();
-
-  //
-  void Split();
-
-  //
-  void ChooseSplitAxis();
-
-  //
-  void ChooseSplitIndex();
-
-  //
-  void remove(Point pt2Remove);
-
-  //
+  //Finds an even distribution of children Nodes and splits Node -> Calls ChooseSplitAxis, ChooseSplitIndex
+  void Split(Node *&tree);
+  //Finds axis to split on and returns axis index
+  int ChooseSplitAxis(Node *&tree);
+  //Finds index in which to divide children nodes at and returns index
+  void ChooseSplitIndex(Node *&tree, int axsIDX);
+  //Removes point from leaf node -> Calls ChooseSubtree
+  void Remove(Point pt2Remove);
+  //Transforms point data
   void Transform(vector<double> userTransform, Point pt2Transform);
-
-  //
+  //Builds and returns a temporary bounding box around list of Nodes
+  vector<vector<float>> TempBB(vector<Node*> userGroup);
+  //Calculate Area-Value
+  float CalculateAreaValue(vector<vector<float>> grp1BB, vector<vector<float>> grp2BB);
+  //Calculate Margin-Value
+  float CalculateMarginValue(vector<Node*> userNodeGroup1, vector<Node*> userNodeGroup2);
+  //Calculate Overlap-Value
+  float CalculateOverlapValue(vector<vector<float>> grp1BB, vector<vector<float>> grp2BB);
+  //Empties RR*-tree
   void clear();
-
-  //
+  //Starts at root and updates all nodes bounding boxes
   void updateNodeBoundingBoxes(Node *&tree);
 private:
   Node *root;
