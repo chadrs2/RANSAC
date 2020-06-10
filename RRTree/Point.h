@@ -11,7 +11,6 @@ public:
   Point() {
     ClID = "UNCLASSIFIED";
     tStep = 0;
-    data = NULL;
   };
   Point(vector<float> userData, int userTStep) {
     ClID = "UNCLASSIFIED";
@@ -21,7 +20,9 @@ public:
   ~Point(){};
   void TransformData(vector<float> userTransform) {
     if (userTransform.size() == data.size()) {
-        data = userTransform * data;
+      for (unsigned int i=0; i < data.size(); i++) {
+        data.at(i) *= userTransform.at(i);
+      }
     }
     else {
       std::cout << "Transform has different dimensions than data vector" << std::endl;

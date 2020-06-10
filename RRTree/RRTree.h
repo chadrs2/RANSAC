@@ -6,90 +6,102 @@ class RRTree {
 public:
   struct Node {
     Node(){
-      nodeLevel=0;
-      pointObj=NULL;
+      //nodeLevel=0;
       overflowTreatmentWasCalled=false;
       isLeafNode = false;
     };
-    Node(Point newPoint) {
-      nodeLevel=0;
-      pointObj=newPoint;
-      overflowTreatmentWasCalled=false;
-      isLeafNode = true;
-    };
     ~Node(){};
     void AddChildNode(Node* userNode) {childrenNodes.push_back(userNode);};
-    void RemoveChildNode(Node userChildNode2Remove) {
+    /*void RemoveChildNode(Node* userChildNode2Remove) {
       childrenNodes.erase(std::remove(childrenNodes.begin(), childrenNodes.end(), userChildNode2Remove), childrenNodes.end());
-    };
-    void RemoveAllChildNodes() {
+    };*/
+    /*void RemoveAllChildNodes() {
       childrenNodes.clear();
-      // TODO: Does this actually get rid of all pointers...or do I need to use the delete function
-    }
+    }*/
     void AddNodePoint(vector<float> userData, int userTStep) {
-      pointObj = new Point(userData, userTStep);
-      isLeafNode = true;
+      pointObjs.push_back(new Point(userData, userTStep));
+      UpdateNodeBoundingBox();
     };
     void UpdateNodeBoundingBox() {
       vector<float> mins, maxs;
-      //For each childNode
-      for (unsigned int ii=0; ii<childrenNodes.size(); ii++) {
-        //vector of dimensions where each dimension is a vector of min and max values
-        vector<vector<float>> currNodeBoundingBox = childrenNodes.at(ii).GetNodeBounds();
-        if (!currNodeBoundingBox.empty()) {
+      if (pointObjs.size() > 0) {//If node is a leaf node
+        //For each data point
+        for (unsigned int ii=0; ii<pointObjs.size(); ii++) {
+          //vector of dimensions where each dimension is a vector of min and max values
+          vector<float> currPtData = pointObjs.at(ii)->GetData();
           //For each dimension
-          for (unsigned int dim=0; dim<currNodeBoundingBox.size(); dim++) {
+          for (unsigned int dim=0; dim<currPtData.size(); dim++) {
             if (ii != 0) {
-              if (currNodeBoundingBox.at(dim).at(0) < mins.at(dim)) {
-                mins.at(dim) = currNodeBoundingBox.at(dim).at(0);
+              if (currPtData.at(dim) < mins.at(dim)) {
+                mins.at(dim) = currPtData.at(dim);
               }
-              if (currNodeBoundingBox.at(dim).at(1) > maxs.at(dim)) {
-                maxs.at(dim) = currNodeBoundingBox.at(dim).at(1);
+              if (currPtData.at(dim) > maxs.at(dim)) {
+                maxs.at(dim) = currPtData.at(dim);
               }
             }
             else {
-              mins.push_back(currNodeBoundingBox.at(dim).at(0));//0==min
-              maxs.push_back(currNodeBoundingBox.at(dim).at(1));//1==max
+              mins.push_back(currPtData.at(dim));
+              maxs.push_back(currPtData.at(dim));
+            }
+          }
+        }
+      }
+      else {
+        //For each childNode
+        for (unsigned int ii=0; ii<childrenNodes.size(); ii++) {
+          //vector of dimensions where each dimension is a vector of min and max values
+          vector<vector<float>> currNodeBoundingBox = childrenNodes.at(ii)->GetNodeBounds();
+          if (!currNodeBoundingBox.empty()) {
+            //For each dimension
+            for (unsigned int dim=0; dim<currNodeBoundingBox.size(); dim++) {
+              if (ii != 0) {
+                if (currNodeBoundingBox.at(dim).at(0) < mins.at(dim)) {
+                  mins.at(dim) = currNodeBoundingBox.at(dim).at(0);
+                }
+                if (currNodeBoundingBox.at(dim).at(1) > maxs.at(dim)) {
+                  maxs.at(dim) = currNodeBoundingBox.at(dim).at(1);
+                }
+              }
+              else {
+                mins.push_back(currNodeBoundingBox.at(dim).at(0));//0==min
+                maxs.push_back(currNodeBoundingBox.at(dim).at(1));//1==max
+              }
             }
           }
         }
       }
       vector<vector<float>> newNodeBoundingBox;
-      for (unsigned int ii=0; ii<mins.size(); ii++) {
+      for (unsigned int dim=0; dim<mins.size(); dim++) {
         vector<float> dimBounds;
-        dimBounds.push_back(mins.at(ii));
-        dimBounds.push_back(maxs.at(ii));
+        dimBounds.push_back(mins.at(dim));
+        dimBounds.push_back(maxs.at(dim));
         newNodeBoundingBox.push_back(dimBounds);
       }
       nodeBoundingBox = newNodeBoundingBox;
     };
     // Getter functions
-    int GetNodeLevel() {return nodeLevel;};
-    void IncreaseNodeLevel() {nodeLevel++;};
-    void DecreaseNodeLevel() {nodeLevel--;};
+    //int GetNodeLevel() {return nodeLevel;};
+    //void IncreaseNodeLevel() {nodeLevel++;};
+    //void DecreaseNodeLevel() {nodeLevel--;};
     vector<Node*> GetNodeChildren() {return childrenNodes;};
     int GetNumberOfChildren() {return childrenNodes.size();};
     vector<vector<float>> GetNodeBounds() {return nodeBoundingBox;};
-    Point* GetNodePoint() {return pointObj;};
+    vector<Point*> GetPointObjs() {return pointObjs;};
     bool WasOverflowTreatmentCalled() {return overflowTreatmentWasCalled;};
     bool IsNodeALeafNode() {
-      if (pointObj != NULL) {//the node is a leaf node
-        return true;
-      }
-      else {
-        return false;
-      }
+      if (pointObjs.size() > 0) {return true;}
+      else {return false;}
     };
     vector<float> GetCenterOfBoundingBox() {
       vector<float> boxOrigin;
       if (!nodeBoundingBox.empty()) {
-        for (unsigned int ii=0; ii<nodeBoundingBox.size(); ii++) {
-          boxOrigin.push_back((nodeBoundingBox.at(ii).at(0) + nodeBoundingBox.at(ii).at(1)) / 2);
+        for (unsigned int dim=0; dim<nodeBoundingBox.size(); dim++) {
+          boxOrigin.push_back((nodeBoundingBox.at(dim).at(0) + nodeBoundingBox.at(dim).at(1)) / 2);
         }
         return boxOrigin;
       }
       else {
-        return nodeBoundingBox;
+        return boxOrigin;
       }
     };
     /*float nodePerimeter() {
@@ -108,9 +120,9 @@ public:
     };*/
     //Variables
     vector<Node*> childrenNodes;
-    int nodeLevel;
+    //int nodeLevel;
     vector<vector<float>> nodeBoundingBox; //1stVect: Dimension; 2ndVect: {min, max}
-    Point* pointObj;
+    vector<Point*> pointObjs;
     bool overflowTreatmentWasCalled;
     bool isLeafNode;
   };
@@ -118,14 +130,21 @@ public:
   RRTree(); //Assumes M=2 and m=1
   RRTree(int userM, int userm);
   ~RRTree(); //Calls clear()
-  Node* GetRootNode() const;
+  //Empties RR*-tree
+  void clear(); // Calls remove
+  void removeNodes(Node *&tree); //Recursive function to delete all nodes in tree
+
+  // Returns root node of tree
+  //Node* GetRootNode() const;
+
   //True if data was able to be inserted -> Calls Insert
   bool InsertData(Point newPoint);
   //True if data was able to be inserted.
   //Keeps nodes balanced and within M and m parameters -> Calls ChooseSubtree, OverflowTreatment
   bool Insert(Node *&tree, Point newPoint);
   //Recursive function moving through tree until it reaches a leaf node -> Calls itself
-  Node* ChooseSubtree(Node *&tree, Point newPoint);
+  //Node* ChooseSubtree(Node *&tree, Point newPoint);
+  void ChooseSubtree(Node *&tree, Point newPoint);
   //True if Split() was called.
   //Meant for dealing with a filled Node -> Calls ReInsert or Split depending on nodeLevel
   bool OverflowTreatment(Node *&tree);
@@ -138,9 +157,9 @@ public:
   //Finds index in which to divide children nodes at and returns index
   void ChooseSplitIndex(Node *&tree, int axsIDX);
   //Removes point from leaf node -> Calls ChooseSubtree
-  void Remove(Point pt2Remove);
+  void Remove(Node *& tree, Point pt2Remove);
   //Transforms point data
-  void Transform(vector<double> userTransform, Point pt2Transform);
+  void Transform(vector<float> userTransform, Point *&pt2Transform);
   //Builds and returns a temporary bounding box around list of Nodes
   vector<vector<float>> TempBB(vector<Node*> userGroup);
   //Calculate Area-Value
@@ -149,12 +168,10 @@ public:
   float CalculateMarginValue(vector<Node*> userNodeGroup1, vector<Node*> userNodeGroup2);
   //Calculate Overlap-Value
   float CalculateOverlapValue(vector<vector<float>> grp1BB, vector<vector<float>> grp2BB);
-  //Empties RR*-tree
-  void clear();
   //Starts at root and updates all nodes bounding boxes
   void updateNodeBoundingBoxes(Node *&tree);
 private:
   Node *root;
   int M; //Max number of nodes per level
   int m; //minimum number of nodes per level
-}
+};
