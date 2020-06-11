@@ -8,16 +8,25 @@ public:
     Node(){
       //nodeLevel=0;
       overflowTreatmentWasCalled=false;
-      isLeafNode = false;
+      isLeafNode = true;
     };
-    ~Node(){};
+    ~Node(){
+      RemoveAllPointObjs();
+    };
     void AddChildNode(Node* userNode) {childrenNodes.push_back(userNode);};
     /*void RemoveChildNode(Node* userChildNode2Remove) {
       childrenNodes.erase(std::remove(childrenNodes.begin(), childrenNodes.end(), userChildNode2Remove), childrenNodes.end());
     };*/
-    /*void RemoveAllChildNodes() {
+    void RemoveAllChildNodes() {
       childrenNodes.clear();
-    }*/
+    }
+    void RemoveAllPointObjs() {
+      for (unsigned int i=0; i < pointObjs.size(); i++) {
+        Point* tempPt = pointObjs.at(i);
+        delete tempPt;
+      }
+      pointObjs.clear();
+    }
     void AddNodePoint(vector<float> userData, int userTStep) {
       pointObjs.push_back(new Point(userData, userTStep));
       UpdateNodeBoundingBox();
@@ -79,6 +88,7 @@ public:
       }
       nodeBoundingBox = newNodeBoundingBox;
     };
+    void SetOverflowTreatment(bool userOTCalled) {overflowTreatmentWasCalled = userOTCalled;};
     // Getter functions
     //int GetNodeLevel() {return nodeLevel;};
     //void IncreaseNodeLevel() {nodeLevel++;};
@@ -87,9 +97,11 @@ public:
     int GetNumberOfChildren() {return childrenNodes.size();};
     vector<vector<float>> GetNodeBounds() {return nodeBoundingBox;};
     vector<Point*> GetPointObjs() {return pointObjs;};
+    int GetNumberOfPoinObjs() {return pointObjs.size();};
     bool WasOverflowTreatmentCalled() {return overflowTreatmentWasCalled;};
     bool IsNodeALeafNode() {
       if (pointObjs.size() > 0) {return true;}
+      else if (childrenNodes.size() == 0) {return true;}
       else {return false;}
     };
     vector<float> GetCenterOfBoundingBox() {
@@ -138,10 +150,10 @@ public:
   //Node* GetRootNode() const;
 
   //True if data was able to be inserted -> Calls Insert
-  bool InsertData(Point newPoint);
+  void InsertData(Point newPoint);
   //True if data was able to be inserted.
   //Keeps nodes balanced and within M and m parameters -> Calls ChooseSubtree, OverflowTreatment
-  bool Insert(Node *&tree, Point newPoint);
+  void Insert(Node *&tree, Point newPoint);
   //Recursive function moving through tree until it reaches a leaf node -> Calls itself
   //Node* ChooseSubtree(Node *&tree, Point newPoint);
   void ChooseSubtree(Node *&tree, Point newPoint);
@@ -161,15 +173,19 @@ public:
   //Transforms point data
   void Transform(vector<float> userTransform, Point *&pt2Transform);
   //Builds and returns a temporary bounding box around list of Nodes
-  vector<vector<float>> TempBB(vector<Node*> userGroup);
+  vector<vector<float>> TempNodeBB(vector<Node*> userGroup);
+  //Builds and returns a temporary bounding box around list of Points
+  vector<vector<float>> TempPointBB(vector<Point*> userGroup);
   //Calculate Area-Value
   float CalculateAreaValue(vector<vector<float>> grp1BB, vector<vector<float>> grp2BB);
   //Calculate Margin-Value
-  float CalculateMarginValue(vector<Node*> userNodeGroup1, vector<Node*> userNodeGroup2);
+  float CalculateMarginValue(vector<vector<float>> grp1BB, vector<vector<float>> grp2BB);
   //Calculate Overlap-Value
   float CalculateOverlapValue(vector<vector<float>> grp1BB, vector<vector<float>> grp2BB);
   //Starts at root and updates all nodes bounding boxes
   void updateNodeBoundingBoxes(Node *&tree);
+  void printTree();
+  void printEachLayer(vector<Node*> branches);
 private:
   Node *root;
   int M; //Max number of nodes per level
