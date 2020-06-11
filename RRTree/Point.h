@@ -32,10 +32,12 @@ public:
   void SetClID(string userClID) {ClID=userClID;};
   void SetTStep(int userTStep) {tStep=userTStep;};
   void AddData(float userData) {data.push_back(userData);};
+  void AddAllDimensionData(vector<float> userData) {data = userData;};
   // Getters
   string GetClID() {return ClID;};
   int GetTStep() {return tStep;}
   vector<float> GetData() {return data;};
+  int GetPointDimensions() {return data.size();}
 private:
   string ClID;
   int tStep;
