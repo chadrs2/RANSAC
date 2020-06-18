@@ -13,18 +13,24 @@ public:
     ~Node(){
       RemoveAllPointObjs();
     };
-    void AddChildNode(Node* userNode) {childrenNodes.push_back(userNode);};
+    void AddChildNode(Node* userNode) {
+      childrenNodes.push_back(userNode);
+      UpdateNodeBoundingBox();
+    };
     /*void RemoveChildNode(Node* userChildNode2Remove) {
       childrenNodes.erase(std::remove(childrenNodes.begin(), childrenNodes.end(), userChildNode2Remove), childrenNodes.end());
     };*/
+    /*void RemoveChildNode(int idx2Remove) {
+      childrenNodes
+    }*/
     void RemoveAllChildNodes() {
       childrenNodes.clear();
     }
     void RemoveAllPointObjs() {
-      for (unsigned int i=0; i < pointObjs.size(); i++) {
+      /*for (unsigned int i=0; i < pointObjs.size(); i++) {
         Point* tempPt = pointObjs.at(i);
         delete tempPt;
-      }
+      }*/
       pointObjs.clear();
     }
     void AddNodePoint(vector<float> userData, int userTStep) {
@@ -143,31 +149,130 @@ public:
   RRTree(int userM, int userm);
   ~RRTree(); //Calls clear()
   //Empties RR*-tree
-  void clear(); // Calls remove
-  void removeNodes(Node *&tree); //Recursive function to delete all nodes in tree
-
-  // Returns root node of tree
-  //Node* GetRootNode() const;
-
+  void Clear(); // Calls remove
+  void RemoveNodes(Node *&tree); //Recursive function to delete all nodes in tree
+  //Finds all points inside query
+  vector<Point*> EvaluateQuery(vector<vector<float>> userQuery);
+  //Returns siblings that are all reached by the query
+  vector<Node*> SiblingNodesInQuery(vector<Node*> siblings, vector<vector<float>> userQuery) {
+    vector<Node*> siblingsInQuery;
+    for (unsigned int i=0; i < siblings.size(); i++) {
+      vector<vector<float>> currNodeBounds = siblings.at(i)->GetNodeBounds();
+      if (IsNodeInQuery(currNodeBounds,userQuery)) {
+        siblingsInQuery.push_back(siblings.at(i));
+      }
+    }
+    if ((siblings.size() == siblingsInQuery.size()) && (siblings.at(0)->GetNumberOfChildren() > 0)) {//All siblings touch query
+      siblingsInQuery.clear();
+      for (unsigned int i=0; i < siblings.size(); i++) {
+        vector<Node*> tempSiblingChildren = siblings.at(i)->GetNodeChildren();
+        vector<Node*> totNodesInQuery = SiblingNodesInQuery(tempSiblingChildren,userQuery);
+        for (unsigned int j=0; j < totNodesInQuery.size(); j++) {
+          siblingsInQuery.push_back(totNodesInQuery.at(j));
+        }
+        totNodesInQuery.clear();
+      }
+      return siblingsInQuery;
+    }
+    else {
+      return siblingsInQuery;
+    }
+  };
+  // Finds out if current node touches query bounds
+  bool IsNodeInQuery(vector<vector<float>> userNode, vector<vector<float>> userQuery);
+  // Finds all points in passed in parent nodes
+  vector<Point*> FindAllPointsInParentNodes(vector<Node*> parentNodes);
   //True if data was able to be inserted -> Calls Insert
   void InsertData(Point newPoint);
   //True if data was able to be inserted.
   //Keeps nodes balanced and within M and m parameters -> Calls ChooseSubtree, OverflowTreatment
-  void Insert(Node *&tree, Point newPoint);
-  //Recursive function moving through tree until it reaches a leaf node -> Calls itself
-  //Node* ChooseSubtree(Node *&tree, Point newPoint);
-  void ChooseSubtree(Node *&tree, Point newPoint);
+  void Insert(vector<Node*> &siblings, int siblingIDX, Point newPoint);
   //True if Split() was called.
   //Meant for dealing with a filled Node -> Calls ReInsert or Split depending on nodeLevel
-  bool OverflowTreatment(Node *&tree);
+  bool OverflowTreatment(vector<Node*> &siblings, int siblingIDX);
   //Used to help avoid Split of nodes as often as possible....I'm a bit confused -> Calls Insert
-  void ReInsert(Node *&tree);
+  void ReInsert(vector<Node*> &siblings, int siblingIDX);
   //Finds an even distribution of children Nodes and splits Node -> Calls ChooseSplitAxis, ChooseSplitIndex
-  void Split(Node *&tree);
+  void Split(vector<Node*> &siblings, int siblingIDX);
   //Finds axis to split on and returns axis index
   int ChooseSplitAxis(Node *&tree);
   //Finds index in which to divide children nodes at and returns index
-  void ChooseSplitIndex(Node *&tree, int axsIDX);
+  void ChooseSplitIndex(vector<Node*> &siblings, int siblingIDX, int axsIDX);
+  //Sorts Nodes/Points on current axis based on data values
+  vector<Node*> SortNodesMin2Max(vector<Node*> userNodes, int axs) {
+    vector<Node*> sortedNodes;
+    for (unsigned int entry=0; entry < userNodes.size(); entry++) {
+      if (sortedNodes.empty()) {
+        sortedNodes.push_back(userNodes.at(entry));
+      }
+      else if (sortedNodes.size() > 1) {
+        bool wasInsertCalled = false;
+        for(unsigned int i=0; i < (sortedNodes.size()-1); i++) {
+          if (sortedNodes.at(i)->GetNodeBounds().at(axs).at(0) < userNodes.at(entry)->GetNodeBounds().at(axs).at(0)) {
+            if (sortedNodes.at(i+1)->GetNodeBounds().at(axs).at(0) > userNodes.at(entry)->GetNodeBounds().at(axs).at(0)) {
+              sortedNodes.insert(sortedNodes.begin()+i+1,userNodes.at(entry));
+              wasInsertCalled = true;
+              break;
+            }
+          }
+          else {
+            sortedNodes.insert(sortedNodes.begin(),userNodes.at(entry));
+            wasInsertCalled = true;
+            break;
+          }
+        }
+        if (!wasInsertCalled) {
+          sortedNodes.push_back(userNodes.at(entry));
+        }
+      }
+      else {
+        if (sortedNodes.at(0)->GetNodeBounds().at(axs).at(0) < userNodes.at(entry)->GetNodeBounds().at(axs).at(0)) {
+          sortedNodes.push_back(userNodes.at(entry));
+        }
+        else {
+          sortedNodes.insert(sortedNodes.begin(),userNodes.at(entry));
+        }
+      }
+    }
+    return sortedNodes;
+  };
+  vector<Point*> SortPointsMin2Max(vector<Point*> userPoints, int axs) {
+    vector<Point*> sortedPoints;
+    for (unsigned int entry=0; entry < userPoints.size(); entry++) {
+      if (sortedPoints.empty()) {
+        sortedPoints.push_back(userPoints.at(entry));
+      }
+      else if (sortedPoints.size() > 1) {
+        bool wasInsertCalled = false;
+        for(unsigned int i=0; i < (sortedPoints.size()-1); i++) {
+          if (sortedPoints.at(i)->GetData().at(axs) < userPoints.at(entry)->GetData().at(axs)) {
+            if (sortedPoints.at(i+1)->GetData().at(axs) > userPoints.at(entry)->GetData().at(axs)) {
+              sortedPoints.insert(sortedPoints.begin()+i+1,userPoints.at(entry));
+              wasInsertCalled = true;
+              break;
+            }
+          }
+          else {
+            sortedPoints.insert(sortedPoints.begin(),userPoints.at(entry));
+            wasInsertCalled = true;
+            break;
+          }
+        }
+        if (!wasInsertCalled) {
+          sortedPoints.push_back(userPoints.at(entry));
+        }
+      }
+      else {
+        if (sortedPoints.at(0)->GetData().at(axs) < userPoints.at(entry)->GetData().at(axs)) {
+          sortedPoints.push_back(userPoints.at(entry));
+        }
+        else {
+          sortedPoints.insert(sortedPoints.begin(),userPoints.at(entry));
+        }
+      }
+    }
+    return sortedPoints;
+  };
   //Removes point from leaf node -> Calls ChooseSubtree
   void Remove(Node *& tree, Point pt2Remove);
   //Transforms point data
@@ -183,7 +288,7 @@ public:
   //Calculate Overlap-Value
   float CalculateOverlapValue(vector<vector<float>> grp1BB, vector<vector<float>> grp2BB);
   //Starts at root and updates all nodes bounding boxes
-  void updateNodeBoundingBoxes(Node *&tree);
+  void updateNodeBoundingBoxes(vector<Node*> &branches);
   void printTree();
   void printEachLayer(vector<Node*> branches);
 private:
