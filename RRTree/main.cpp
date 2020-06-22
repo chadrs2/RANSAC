@@ -9,12 +9,18 @@ using std::cin;
 
 int main(int argc, char *argv[]) {
   srand(time(0));
-  unsigned int numPts = 5;//*argv[1] - '0';
-  cout << endl << "Inserting " << numPts << " points into R*-Tree" << endl << endl;
-  if (argc > 1) {
-    int M = *argv[1] - '0'; // *argv[0]=./run_file; *argv[1]=M; *argv[2]=m
-    int m = *argv[2] - '0';
-    //std::cout << M << " " << m << std::endl;
+  unsigned int numPts;
+  cout << "How many data points do you wish to enter? ";
+  cin >> numPts;
+  char chooseM;
+  cout << "Do you wish to set the M (max nodes per level) value? (y/n) ";
+  cin >> chooseM;
+  if (chooseM == 'y') {
+    int M;
+    int m = 1;
+    cout << "M = ";
+    cin >> M;
+    cout << endl << "Inserting " << numPts << " points into R*-Tree" << endl << endl;
     RRTree* rrTree = new RRTree(M,m);
     for (unsigned int i=0; i < numPts; i++) {
       Point dataPoint;
@@ -78,6 +84,7 @@ int main(int argc, char *argv[]) {
     delete rrTree;
   }
   else {
+    cout << endl << "Inserting " << numPts << " points into R*-Tree" << endl << endl;
     RRTree* rrTree = new RRTree();
     for (unsigned int i=0; i < numPts; i++) {
       Point dataPoint;
