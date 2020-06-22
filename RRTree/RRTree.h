@@ -1,12 +1,12 @@
 #pragma once
 
 #include "Point.h"
+#include <algorithm>
 
 class RRTree {
 public:
   struct Node {
     Node(){
-      //nodeLevel=0;
       overflowTreatmentWasCalled=false;
       isLeafNode = true;
     };
@@ -96,9 +96,6 @@ public:
     };
     void SetOverflowTreatment(bool userOTCalled) {overflowTreatmentWasCalled = userOTCalled;};
     // Getter functions
-    //int GetNodeLevel() {return nodeLevel;};
-    //void IncreaseNodeLevel() {nodeLevel++;};
-    //void DecreaseNodeLevel() {nodeLevel--;};
     vector<Node*> GetNodeChildren() {return childrenNodes;};
     int GetNumberOfChildren() {return childrenNodes.size();};
     vector<vector<float>> GetNodeBounds() {return nodeBoundingBox;};
@@ -122,23 +119,8 @@ public:
         return boxOrigin;
       }
     };
-    /*float nodePerimeter() {
-      float perim = 0;
-      for (unsigned int i = 0; i<nodeSize.size(); i++) {
-      }
-      return perim;
-      perim += nodeSize.at(i).at(1)-nodeSize.at(i).at(0);
-    };
-    float nodeVolume() {
-      float vol = 1;
-      for (unsigned int i = 0; i<nodeSize.size(); i++) {
-        vol *= nodeSize.at(i).at(1)-nodeSize.at(i).at(0);
-      }
-      return vol;
-    };*/
     //Variables
     vector<Node*> childrenNodes;
-    //int nodeLevel;
     vector<vector<float>> nodeBoundingBox; //1stVect: Dimension; 2ndVect: {min, max}
     vector<Point*> pointObjs;
     bool overflowTreatmentWasCalled;
@@ -151,6 +133,7 @@ public:
   //Empties RR*-tree
   void Clear(); // Calls remove
   void RemoveNodes(Node *&tree); //Recursive function to delete all nodes in tree
+
   //Finds all points inside query
   vector<Point*> EvaluateQuery(vector<vector<float>> userQuery);
   //Returns siblings that are all reached by the query
@@ -182,11 +165,13 @@ public:
   bool IsNodeInQuery(vector<vector<float>> userNode, vector<vector<float>> userQuery);
   // Finds all points in passed in parent nodes
   vector<Point*> FindAllPointsInParentNodes(vector<Node*> parentNodes);
+
   //True if data was able to be inserted -> Calls Insert
   void InsertData(Point newPoint);
   //True if data was able to be inserted.
   //Keeps nodes balanced and within M and m parameters -> Calls ChooseSubtree, OverflowTreatment
   void Insert(vector<Node*> &siblings, int siblingIDX, Point newPoint);
+
   //True if Split() was called.
   //Meant for dealing with a filled Node -> Calls ReInsert or Split depending on nodeLevel
   bool OverflowTreatment(vector<Node*> &siblings, int siblingIDX);
@@ -273,24 +258,30 @@ public:
     }
     return sortedPoints;
   };
-  //Removes point from leaf node -> Calls ChooseSubtree
-  void Remove(Node *& tree, Point pt2Remove);
+
+  //** OUR NEW FUNCTIONS (RemovePoint, Transform) **
+  //Removes point from leaf node
+  void RemovePoint(Point userPoint);
+  void Remove(vector<Node*> &siblings, int siblingIDX, Point pt2Remove);
   //Transforms point data
   void Transform(vector<float> userTransform, Point *&pt2Transform);
+
   //Builds and returns a temporary bounding box around list of Nodes
   vector<vector<float>> TempNodeBB(vector<Node*> userGroup);
   //Builds and returns a temporary bounding box around list of Points
   vector<vector<float>> TempPointBB(vector<Point*> userGroup);
+
   //Calculate Area-Value
   float CalculateAreaValue(vector<vector<float>> grp1BB, vector<vector<float>> grp2BB);
   //Calculate Margin-Value
   float CalculateMarginValue(vector<vector<float>> grp1BB, vector<vector<float>> grp2BB);
   //Calculate Overlap-Value
   float CalculateOverlapValue(vector<vector<float>> grp1BB, vector<vector<float>> grp2BB);
+
   //Starts at root and updates all nodes bounding boxes
-  void updateNodeBoundingBoxes(vector<Node*> &branches);
-  void printTree();
-  void printEachLayer(vector<Node*> branches);
+  void UpdateNodeBoundingBoxes(vector<Node*> &branches);
+  void PrintTree();
+  void PrintEachLayer(vector<Node*> branches);
 private:
   Node *root;
   int M; //Max number of nodes per level

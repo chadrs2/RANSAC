@@ -5,10 +5,11 @@
 #include "RRTree.h"
 using std::cout;
 using std::endl;
+using std::cin;
 
 int main(int argc, char *argv[]) {
   srand(time(0));
-  unsigned int numPts = 15;//*argv[1] - '0';
+  unsigned int numPts = 5;//*argv[1] - '0';
   cout << endl << "Inserting " << numPts << " points into R*-Tree" << endl << endl;
   if (argc > 1) {
     int M = *argv[1] - '0'; // *argv[0]=./run_file; *argv[1]=M; *argv[2]=m
@@ -25,7 +26,7 @@ int main(int argc, char *argv[]) {
       dataPoint.AddAllDimensionData(data);
       rrTree->InsertData(dataPoint);
     }
-    rrTree->printTree();
+    rrTree->PrintTree();
     cout << endl;
     // Implementing query search
     vector<vector<float>> query{{1,15},{3,30},{44,50}};
@@ -52,6 +53,27 @@ int main(int argc, char *argv[]) {
         }
       }
       cout << "}" << endl;
+    }
+    cout << endl;
+    //Remove point
+    char userInput;
+    cout << "Do you want to remove a data point? (y/n) ";
+    cin >> userInput;
+    while(userInput=='y') {
+      cout << endl;
+      Point dataPoint;
+      for (unsigned int i=0; i < query.size(); i++) {
+        int currInput;
+        cout << "Type in " << i+1 << " input = ";
+        cin >> currInput;
+        dataPoint.AddData(currInput);
+      }
+      cout << endl;
+      rrTree->RemovePoint(dataPoint);
+      cout << endl;
+      rrTree->PrintTree();
+      cout << "Do you want to remove a data point? (y/n) ";
+      cin >> userInput;
     }
     delete rrTree;
   }
@@ -67,7 +89,7 @@ int main(int argc, char *argv[]) {
       dataPoint.AddAllDimensionData(data);
       rrTree->InsertData(dataPoint);
     }
-    rrTree->printTree();
+    rrTree->PrintTree();
     cout << endl;
     // Implementing query search
     vector<vector<float>> query{{1,15},{3,30},{44,50}};
@@ -94,6 +116,27 @@ int main(int argc, char *argv[]) {
         }
       }
       cout << "}" << endl;
+    }
+    cout << endl;
+    //Remove point
+    char userInput;
+    cout << "Do you want to remove a data point? (y/n) ";
+    cin >> userInput;
+    while(userInput=='y') {
+      cout << endl;
+      Point dataPoint;
+      for (unsigned int i=0; i < query.size(); i++) {
+        int currInput;
+        cout << "Type in " << i+1 << " input = ";
+        cin >> currInput;
+        dataPoint.AddData(currInput);
+      }
+      cout << endl;
+      rrTree->RemovePoint(dataPoint);
+      cout << endl;
+      rrTree->PrintTree();
+      cout << "Do you want to remove a data point? (y/n) ";
+      cin >> userInput;
     }
     delete rrTree;
   }

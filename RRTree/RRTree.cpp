@@ -1,12 +1,9 @@
 #include "RRTree.h"
 #include <cmath>
 #include <map>
-#include <set>
-#include <algorithm>
 using std::pow;
 using std::sqrt;
 using std::ceil;
-using std::set;
 using std::map;
 
 RRTree::RRTree() {
@@ -172,15 +169,13 @@ void RRTree::Insert(vector<Node*> &siblings, int childIDX, Point newPoint) {
       //std::cout << "Need to create a new root" << std::endl;
       vector<Node*>::iterator itr = siblings.begin();
       siblings.erase(itr);
-      //Node *tempRoot = root;
       for (unsigned int i=0; i < siblings.size(); i++) {
         root->AddChildNode(siblings.at(i));
       }
       root->UpdateNodeBoundingBox();
     }
   }
-  updateNodeBoundingBoxes(siblings);
-  //siblings.at(childIDX)->UpdateNodeBoundingBox();
+  UpdateNodeBoundingBoxes(siblings);
 };
 
 //True if Split() was called.
@@ -358,7 +353,6 @@ void RRTree::ChooseSplitIndex(vector<Node*> &siblings, int childIDX, int axsIDX)
     }
     siblings.at(childIDX)->RemoveAllChildNodes();
     //Delete childIDX node here
-    //std::cout << "About to delete node" << std::endl;
     vector<Node*>::iterator node2Remove_itr=siblings.begin();
     for (int i=0; i < childIDX; i++) {
       node2Remove_itr++;
@@ -366,11 +360,8 @@ void RRTree::ChooseSplitIndex(vector<Node*> &siblings, int childIDX, int axsIDX)
     if (siblings.at(childIDX) != root) {
       siblings.erase(node2Remove_itr);
     }
-    //std::cout << "Deleted node" << std::endl;
     siblings.push_back(grp1Node);
     siblings.push_back(grp2Node);
-    //tree->AddChildNode(grp1Node);
-    //tree->AddChildNode(grp2Node);
   }
   else {//If children are Point Objects and not Nodes
     //std::cout << "Node is a leaf node" << std::endl;
@@ -405,7 +396,6 @@ void RRTree::ChooseSplitIndex(vector<Node*> &siblings, int childIDX, int axsIDX)
     for (unsigned int i=0; i < newGrp2.size(); i++) {
       grp2Node->AddNodePoint(newGrp2.at(i)->GetData(),newGrp2.at(i)->GetTStep());
     }
-    //std::cout << "About to delete node" << std::endl;
     siblings.at(childIDX)->RemoveAllPointObjs();
     //Delete childIDX node here
     vector<Node*>::iterator node2Remove_itr=siblings.begin();
@@ -415,23 +405,89 @@ void RRTree::ChooseSplitIndex(vector<Node*> &siblings, int childIDX, int axsIDX)
     if (siblings.at(childIDX) != root) {
       siblings.erase(node2Remove_itr);
     }
-    //std::cout << "Deleted node" << std::endl;
     siblings.push_back(grp1Node);
     siblings.push_back(grp2Node);
-    //std::cout << "# of siblings: " << siblings.size() << std::endl;
-    //tree->AddChildNode(grp1Node);
-    //tree->AddChildNode(grp2Node);
   }
 };
 
 //Removes point from leaf node -> Calls ChooseSubtree
-void RRTree::Remove(Node *&tree, Point pt2Remove) {
-
+void RRTree::RemovePoint(Point userPoint) {
+  vector<Node*> rootVect{root};
+  Remove(rootVect,0,userPoint);
+};
+void RRTree::Remove(vector<Node*> &siblings, int siblingIDX, Point pt2Remove) {
+  // ChooseSubtree Algorithm
+  if (!(siblings.at(siblingIDX)->IsNodeALeafNode())) {
+    vector<Node*> currChildren = siblings.at(siblingIDX)->GetNodeChildren();
+    vector<float> ptData = pt2Remove.GetData();
+    for (unsigned int i=0; i < currChildren.size(); i++) {
+      vector<vector<float>> currNodeBounds = currChildren.at(i)->GetNodeBounds();
+      bool ptInNode = true;
+      for (unsigned int dim=0; dim < currNodeBounds.size(); dim++) {
+        if (!(currNodeBounds.at(dim).at(0) <= ptData.at(dim) && currNodeBounds.at(dim).at(1) >= ptData.at(dim))) {
+          ptInNode = false;
+        }
+      }
+      if (ptInNode) {
+        Remove(currChildren,i,pt2Remove);
+        break;
+      }
+    }
+    siblings.at(siblingIDX)->RemoveAllChildNodes();
+    int node2Remove = -1;
+    int numChildren = currChildren.size();
+    for (int i=0; i < numChildren; i++) {
+      if (currChildren.at(i)->GetNumberOfChildren()>0 || currChildren.at(i)->GetNumberOfPoinObjs()>0) {
+        siblings.at(siblingIDX)->AddChildNode(currChildren.at(i));
+      }
+      else {
+        node2Remove = i;
+      }
+    }
+    if (node2Remove != -1) {
+      delete currChildren.at(node2Remove);
+    }
+    siblings.at(siblingIDX)->UpdateNodeBoundingBox();
+  }
+  else {
+    // Remove point
+    // Remove found point from node
+    vector<Point*> ptObjs = siblings.at(siblingIDX)->GetPointObjs();
+    int idx2Remove = -1;
+    int numPtsInNode = ptObjs.size();
+    for (int i=0; i < numPtsInNode; i++) {
+      if (ptObjs.at(i)->GetData() == pt2Remove.GetData()) {
+        idx2Remove = i;
+      }
+    }
+    if (idx2Remove != -1) {
+      siblings.at(siblingIDX)->RemoveAllPointObjs();
+      int numPtsInNode = ptObjs.size();
+      for (int i=0; i < numPtsInNode; i++) {
+        if (i != idx2Remove) {
+          siblings.at(siblingIDX)->AddNodePoint(ptObjs.at(i)->GetData(),ptObjs.at(i)->GetTStep());
+        }
+      }
+      Point* removingPt = ptObjs.at(idx2Remove);
+      delete removingPt;
+      // If Node is now empty remove node
+      //vector<Node*> rootVect{root};
+      // TODO: fix UpdateEntireTree function
+      //UpdateEntireTree(rootVect);
+      //std::cout << "made it here" << std::endl;
+      //UpdateNodeBoundingBoxes(rootVect);
+      std::cout << "Point was removed" << std::endl;
+    }
+    else {
+      std::cout << "Point was not removed" << std::endl;
+    }
+    siblings.at(siblingIDX)->UpdateNodeBoundingBox();
+  }
 };
 
 //Transforms point data
 void RRTree::Transform(vector<float> userTransform, Point *&pt2Transform) {
-  //pt2Transform->TransformData(userTransform);
+  //TODO: pt2Transform->TransformData(userTransform);
 };
 
 //Builds and returns a temporary bounding box around list of Nodes
@@ -558,23 +614,23 @@ float RRTree::CalculateOverlapValue(vector<vector<float>> grp1BB, vector<vector<
 };
 
 //Starts at root and updates all nodes bounding boxes
-void RRTree::updateNodeBoundingBoxes(vector<Node*> &branches) {
+void RRTree::UpdateNodeBoundingBoxes(vector<Node*> &branches) {
   for (unsigned int i=0; i < branches.size(); i++) {
     branches.at(i)->UpdateNodeBoundingBox();
     vector<Node*> children = branches.at(i)->GetNodeChildren();
     if (children.size() > 0) {
-      updateNodeBoundingBoxes(children);
+      UpdateNodeBoundingBoxes(children);
     }
   }
 };
 
 //Print Tree by layer starting at the root Node
-void RRTree::printTree() {
+void RRTree::PrintTree() {
   vector<Node*> tempVectNodes{root};
-  printEachLayer(tempVectNodes);
+  PrintEachLayer(tempVectNodes);
 }
 
-void RRTree::printEachLayer(vector<Node*> currLayer) {
+void RRTree::PrintEachLayer(vector<Node*> currLayer) {
   if (currLayer.size() > 1) {
     vector<Node*> nextLayer;
     for (unsigned int i=0; i < currLayer.size(); i++) {
@@ -600,7 +656,7 @@ void RRTree::printEachLayer(vector<Node*> currLayer) {
     }
     std::cout << std::endl;
     if (!nextLayer.empty()) {
-      printEachLayer(nextLayer);
+      PrintEachLayer(nextLayer);
     }
     else {
       for (unsigned int i=0; i < currLayer.size(); i++) {
@@ -627,7 +683,7 @@ void RRTree::printEachLayer(vector<Node*> currLayer) {
   }
   else if (currLayer.size() > 0) {
     //Print out current Node
-    std::cout << "Root has bounds {";
+    std::cout << "Node has bounds {";
     vector<vector<float>> treeBounds = currLayer.at(0)->GetNodeBounds();
     for (unsigned int dim=0; dim < treeBounds.size(); dim++) {
       std::cout << treeBounds.at(dim).at(0) << ",";
@@ -638,9 +694,12 @@ void RRTree::printEachLayer(vector<Node*> currLayer) {
         std::cout << treeBounds.at(dim).at(1) << "}";
       }
     }
+    if (treeBounds.size() == 0) {
+      std::cout << "<empty>}" << std::endl;
+    }
     std::cout << std::endl;
     if (currLayer.at(0)->GetNumberOfChildren() > 0) {
-      printEachLayer(currLayer.at(0)->GetNodeChildren());
+      PrintEachLayer(currLayer.at(0)->GetNodeChildren());
     }
     else if (currLayer.at(0)->GetNumberOfPoinObjs() > 0) {
       //Print out points in node
