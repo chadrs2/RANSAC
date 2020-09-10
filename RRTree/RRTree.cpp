@@ -32,6 +32,12 @@ void RRTree::RemoveNodes(Node *&tree) {
   delete tree;
 };
 
+//Return all points in tree
+vector<Point*> RRTree::GetAllPointsInTree() {
+  vector<Node*> treeRoot{root};
+  return FindAllPointsInParentNodes(treeRoot);
+}
+
 //Finds all points inside query
 vector<Point*> RRTree::EvaluateQuery(vector<vector<float>> userQuery) {
   vector<Node*> treeRoot{root};
@@ -78,6 +84,7 @@ vector<Point*> RRTree::FindAllPointsInParentNodes(vector<Node*> parentNodes) {
 void RRTree::InsertData(Point newPoint) {
   //std::cout << "InsertData is called" << std::endl;
   if (root == NULL) {
+    //std::cout << "root is NULL" << std::endl;
     root = new Node();
   }
   vector<Node*> treeRoot{root};
@@ -152,13 +159,13 @@ void RRTree::Insert(vector<Node*> &siblings, int childIDX, Point newPoint) {
   //std::cout << "Number of children nodes in current node: " << siblings.at(childIDX)->GetNumberOfChildren() << std::endl;
   if ((siblings.at(childIDX)->GetNumberOfPoinObjs() < M) && (siblings.at(childIDX)->IsNodeALeafNode())) {
     //std::cout << "Add Point into current child node" << std::endl;
-    siblings.at(childIDX)->AddNodePoint(newPoint.GetData(),newPoint.GetTStep());
+    siblings.at(childIDX)->AddNodePointWithClID(newPoint.GetData(),newPoint.GetTStep(),newPoint.GetClID());
   }
   else if ((siblings.at(childIDX)->GetNumberOfPoinObjs() == M) || (siblings.at(childIDX)->GetNumberOfChildren() > M)) {
     //std::cout << "Node is either full of nodes or points" << std::endl;
     if ((siblings.at(childIDX)->GetNumberOfPoinObjs() == M) && (siblings.at(childIDX)->IsNodeALeafNode())) {
       //std::cout << "Add point to this node" << std::endl;
-      siblings.at(childIDX)->AddNodePoint(newPoint.GetData(),newPoint.GetTStep());
+      siblings.at(childIDX)->AddNodePointWithClID(newPoint.GetData(),newPoint.GetTStep(),newPoint.GetClID());
     }
     bool rootWasSplit = false;
     if (siblings.at(childIDX) == root) {
@@ -429,7 +436,7 @@ void RRTree::Remove(vector<Node*> &siblings, int siblingIDX, Point pt2Remove) {
         }
       }
       if (ptInNode) {
-        Remove(currChildren,i,pt2Remove);
+        Remove(currChildren,i,pt2Remove);//
         break;
       }
     }
@@ -465,7 +472,7 @@ void RRTree::Remove(vector<Node*> &siblings, int siblingIDX, Point pt2Remove) {
       int numPtsInNode = ptObjs.size();
       for (int i=0; i < numPtsInNode; i++) {
         if (i != idx2Remove) {
-          siblings.at(siblingIDX)->AddNodePoint(ptObjs.at(i)->GetData(),ptObjs.at(i)->GetTStep());
+          siblings.at(siblingIDX)->AddNodePointWithClID(ptObjs.at(i)->GetData(),ptObjs.at(i)->GetTStep(),ptObjs.at(i)->GetClID());
         }
       }
       Point* removingPt = ptObjs.at(idx2Remove);
@@ -664,18 +671,8 @@ void RRTree::PrintEachLayer(vector<Node*> currLayer) {
           //Print out points in node
           vector<Point*> currPoints = currLayer.at(i)->GetPointObjs();
           for (unsigned int j=0; j < currPoints.size(); j++) {
-            std::cout << "Point " << j << " belonging to " << i << " Node: Data {";
-            vector<float> ptData = currPoints.at(j)->GetData();
-            for (unsigned int k=0; k < ptData.size(); k++) {
-              if (k+1 < ptData.size()) {
-                std::cout << ptData.at(k) << ",";
-              }
-              else {
-                std::cout << ptData.at(k) << "}; ";
-              }
-            }
-            std::cout << "T_step = " << currPoints.at(j)->GetTStep();
-            std::cout << "; Cluster ID = " << currPoints.at(j)->GetClID() << std::endl;
+            std::cout << "Point " << j << " belonging to " << i << " Node: ";
+            currPoints.at(j)->PrintPoint();
           }
         }
       }
@@ -705,18 +702,8 @@ void RRTree::PrintEachLayer(vector<Node*> currLayer) {
       //Print out points in node
       vector<Point*> currPoints = currLayer.at(0)->GetPointObjs();
       for (unsigned int i=0; i < currPoints.size(); i++) {
-        std::cout << "Point " << i << ": Data {";
-        vector<float> ptData = currPoints.at(i)->GetData();
-        for (unsigned int j=0; j < ptData.size(); j++) {
-          if (j+1 < ptData.size()) {
-            std::cout << ptData.at(j) << ",";
-          }
-          else {
-            std::cout << ptData.at(j) << "}; ";
-          }
-        }
-        std::cout << "T_step = " << currPoints.at(i)->GetTStep();
-        std::cout << "; Cluster ID = " << currPoints.at(i)->GetClID() << std::endl;
+        std::cout << "Point " << i << ": ";
+        currPoints.at(i)->PrintPoint();
       }
     }
     else {

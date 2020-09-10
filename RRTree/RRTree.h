@@ -17,24 +17,18 @@ public:
       childrenNodes.push_back(userNode);
       UpdateNodeBoundingBox();
     };
-    /*void RemoveChildNode(Node* userChildNode2Remove) {
-      childrenNodes.erase(std::remove(childrenNodes.begin(), childrenNodes.end(), userChildNode2Remove), childrenNodes.end());
-    };*/
-    /*void RemoveChildNode(int idx2Remove) {
-      childrenNodes
-    }*/
     void RemoveAllChildNodes() {
       childrenNodes.clear();
-    }
+    };
     void RemoveAllPointObjs() {
-      /*for (unsigned int i=0; i < pointObjs.size(); i++) {
-        Point* tempPt = pointObjs.at(i);
-        delete tempPt;
-      }*/
       pointObjs.clear();
-    }
+    };
     void AddNodePoint(vector<float> userData, int userTStep) {
       pointObjs.push_back(new Point(userData, userTStep));
+      UpdateNodeBoundingBox();
+    };
+    void AddNodePointWithClID(vector<float> userData, int userTStep, string userClID) {
+      pointObjs.push_back(new Point(userData, userTStep, userClID));
       UpdateNodeBoundingBox();
     };
     void UpdateNodeBoundingBox() {
@@ -92,6 +86,7 @@ public:
         dimBounds.push_back(maxs.at(dim));
         newNodeBoundingBox.push_back(dimBounds);
       }
+      nodeBoundingBox.clear();
       nodeBoundingBox = newNodeBoundingBox;
     };
     void SetOverflowTreatment(bool userOTCalled) {overflowTreatmentWasCalled = userOTCalled;};
@@ -133,7 +128,8 @@ public:
   //Empties RR*-tree
   void Clear(); // Calls remove
   void RemoveNodes(Node *&tree); //Recursive function to delete all nodes in tree
-
+  //Finds all points in entire tree
+  vector<Point*> GetAllPointsInTree();
   //Finds all points inside query
   vector<Point*> EvaluateQuery(vector<vector<float>> userQuery);
   //Returns siblings that are all reached by the query
